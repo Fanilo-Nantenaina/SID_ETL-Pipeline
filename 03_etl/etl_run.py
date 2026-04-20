@@ -38,7 +38,7 @@ def run():
     log.info("--- PHASE L : Chargement ---")
     load_dim_temps()
     load_dim_client()
-    load_dim_produit()  # ← fonction dédiée
+    load_dim_produit()
     load_dim_simple(
         "stg_commerciaux",
         "dim_commercial",
@@ -46,7 +46,7 @@ def run():
     )
     load_dim_simple("stg_modes_reglement", "dim_mode_reglement", {"libelle": "libelle"})
     load_fait_ventes()
-    load_fait_reglements()  # ← ajout manquant
+    load_fait_reglements()
 
     log.info(f"=== ETL TERMINÉ en {time.time()-t0:.1f}s ===")
 

@@ -8,9 +8,6 @@ log = logging.getLogger(__name__)
 TODAY = date.today().isoformat()
 
 
-# ──────────────────────────────────────────────────────
-# dim_temps : génération du calendrier si vide
-# ──────────────────────────────────────────────────────
 def load_dim_temps():
     insp = sql_inspect(ENGINE_DM)
     if insp.has_table("dim_temps"):
@@ -44,9 +41,6 @@ def load_dim_temps():
     log.info(f"dim_temps : {len(rows)} jours insérés")
 
 
-# ──────────────────────────────────────────────────────
-# dim_client : SCD Type 2
-# ──────────────────────────────────────────────────────
 def load_dim_client():
     df_stg = pd.read_sql(
         "SELECT * FROM stg_clients WHERE stg_status='CLEAN'", ENGINE_STG
@@ -118,9 +112,6 @@ def _build_dim_row(row, date_debut, id_client):
     }
 
 
-# ──────────────────────────────────────────────────────
-# dim_produit : full replace avec jointure famille
-# ──────────────────────────────────────────────────────
 def load_dim_produit():
     df_prod = pd.read_sql("SELECT * FROM stg_produits", ENGINE_STG)
     df_fam = pd.read_sql(
@@ -133,7 +124,7 @@ def load_dim_produit():
         {
             "code": df["code_produit"],
             "libelle": df["libelle"],
-            "sous_famille": df["marque"],  # Sub-Category Kaggle / marque générique
+            "sous_famille": df["marque"],
             "famille": df["famille"],
             "marque": df["marque"],
             "unite": df["unite"],
@@ -144,9 +135,6 @@ def load_dim_produit():
     log.info(f"dim_produit : {len(dim)} lignes chargées")
 
 
-# ──────────────────────────────────────────────────────
-# dim_commercial, dim_mode (full replace générique)
-# ──────────────────────────────────────────────────────
 def load_dim_simple(stg_table, dm_table, col_map):
     df = pd.read_sql(f"SELECT * FROM {stg_table}", ENGINE_STG)
     df = df.rename(columns=col_map)
@@ -156,9 +144,6 @@ def load_dim_simple(stg_table, dm_table, col_map):
     log.info(f"{dm_table} : {len(df)} lignes chargées")
 
 
-# ──────────────────────────────────────────────────────
-# fait_ventes : chargement de la table de faits
-# ──────────────────────────────────────────────────────
 def load_fait_ventes():
     df = pd.read_sql(
         "SELECT * FROM stg_lignes_facture WHERE stg_status='CLEAN'", ENGINE_STG
@@ -169,14 +154,12 @@ def load_fait_ventes():
         "SELECT id_client, code FROM dim_client WHERE est_actuel=TRUE", ENGINE_DM
     )
 
-    # Résolution id_date
     df["date_facture"] = pd.to_datetime(df["date_facture"])
     df["id_date_key"] = df["date_facture"].dt.strftime("%Y%m%d").astype(int)
     df = df.merge(
         dim_t[["id_date"]], left_on="id_date_key", right_on="id_date", how="left"
     )
 
-    # Résolution id_client
     df_cli_map = pd.read_sql(
         "SELECT id_client AS id_stg, code_client FROM stg_clients", ENGINE_STG
     )
@@ -211,9 +194,6 @@ def load_fait_ventes():
     log.info(f"fait_ventes : {len(fait)} lignes chargées")
 
 
-# ──────────────────────────────────────────────────────
-# fait_reglements : chargement (absent du guide original)
-# ──────────────────────────────────────────────────────
 def load_fait_reglements():
     df = pd.read_sql("SELECT * FROM stg_reglements", ENGINE_STG)
 
@@ -222,14 +202,12 @@ def load_fait_reglements():
         "SELECT id_client, code FROM dim_client WHERE est_actuel=TRUE", ENGINE_DM
     )
 
-    # Résolution id_date depuis date_reglement
     df["date_reglement"] = pd.to_datetime(df["date_reglement"])
     df["id_date_key"] = df["date_reglement"].dt.strftime("%Y%m%d").astype(int)
     df = df.merge(
         dim_t[["id_date"]], left_on="id_date_key", right_on="id_date", how="left"
     )
 
-    # Résolution id_client : reglements n'a pas id_client → on passe par stg_lignes_facture
     df_fk = pd.read_sql(
         "SELECT DISTINCT id_facture, id_client FROM stg_lignes_facture", ENGINE_STG
     )

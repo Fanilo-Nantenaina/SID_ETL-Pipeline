@@ -1,12 +1,18 @@
--- Dataset R2 : Top 10 clients par CA sur une année
--- Paramètre : annee (INTEGER)
+-- ============================================================
+-- 05_easyreport/datasets/ds_top_clients.sql
+-- Rapport R2 : Top 10 clients par CA
+-- Paramètre  : annee (INTEGER)
+-- ============================================================
 SELECT
   c.nom AS client,
   c.segment,
   c.ville,
+  c.region,
   ROUND(SUM(f.montant_ht), 0) AS ca_total,
+  ROUND(SUM(f.montant_ttc), 0) AS ca_ttc,
   COUNT(DISTINCT f.id_date) AS nb_jours_achat,
   ROUND(AVG(f.montant_ht), 0) AS panier_moyen,
+  ROUND(SUM(f.marge), 0) AS marge_totale,
   ROUND(
     SUM(f.montant_ht) / (
       SELECT
@@ -30,8 +36,10 @@ GROUP BY
   c.id_client,
   c.nom,
   c.segment,
-  c.ville
+  c.ville,
+  c.region
 ORDER BY
   ca_total DESC
 LIMIT
   10;
+-- Paramètre à déclarer : annee (INTEGER, ex: 2024)
