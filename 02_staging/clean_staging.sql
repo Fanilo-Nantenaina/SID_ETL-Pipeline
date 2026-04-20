@@ -1,11 +1,46 @@
 USE ventes_stg;
+-- ══════════════════════════════════════════════════════════════════
+-- Fonction nom_propre (1ʳᵉ lettre de chaque mot en majuscule)
+-- ══════════════════════════════════════════════════════════════════
+DROP FUNCTION IF EXISTS nom_propre;
+DELIMITER $ $ CREATE FUNCTION nom_propre(str VARCHAR(200)) RETURNS VARCHAR(200) DETERMINISTIC BEGIN DECLARE result VARCHAR(200) DEFAULT '';
+DECLARE word VARCHAR(200);
+DECLARE rest VARCHAR(200);
+DECLARE sep_pos INT;
+SET
+  rest = TRIM(LOWER(str));
+WHILE LENGTH(rest) > 0 DO
+SET
+  sep_pos = LOCATE(' ', rest);
+IF sep_pos = 0 THEN
+SET
+  word = rest;
+SET
+  rest = '';
+  ELSE
+SET
+  word = LEFT(rest, sep_pos - 1);
+SET
+  rest = LTRIM(SUBSTRING(rest, sep_pos + 1));
+END IF;
+IF LENGTH(result) > 0 THEN
+SET
+  result = CONCAT(result, ' ');
+END IF;
+SET
+  result = CONCAT(result, UPPER(LEFT(word, 1)), SUBSTRING(word, 2));
+END WHILE;
+RETURN result;
+END $ $ DELIMITER;
+-- ══════════════════════════════════════════════════════════════════
+-- Nettoyage stg_clients
+-- ══════════════════════════════════════════════════════════════════
 -- ① Normaliser les libellés clients (trim + uppercase)
 UPDATE
   stg_clients
 SET
   nom = TRIM(UPPER(nom)),
   ville = TRIM(nom_propre(ville)),
-  -- voir fonction ci-dessous
   region = TRIM(region);
 -- ② Valeurs nulles : ville et région inconnues
 UPDATE
