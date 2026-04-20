@@ -1,0 +1,95 @@
+# =============================================
+# .gitignore - SID NegoCorp EasyReport
+# =============================================
+
+# === Environnements virtuels ===
+venv/
+venv.bak/
+.venv/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# === Logs et données temporaires ===
+*.log
+logs/
+*.tmp
+*.temp
+
+# === Fichiers de configuration sensibles ===
+.env
+.env.local
+.env.*.local
+credentials.json
+config.ini
+
+# === Bases de données et exports ===
+*.sql.bak
+*.bak
+*.dump
+*.csv
+*.xlsx
+*.xls
+!05_easyreport/templates/*.xlsx
+!templates/*.xlsx
+
+# === IDE et éditeurs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+.metadata
+
+# === OS Windows ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# === Tests et cache ===
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+
+# === Divers ===
+.DS_Store
+*.DS_Store
+node_modules/
+*.class
+*.jar
+
+# === EasyReport / Tomcat (si tu déploies localement) ===
+*.war
+work/
+temp/
+
+*clean*.py
+*comment*.py
