@@ -1,7 +1,10 @@
 import logging, sys, time
+from pathlib import Path
 from etl_extract import extract_all
 from etl_transform import transform_clients, transform_lignes
 from etl_load import load_dim_temps, load_dim_client, load_dim_simple, load_fait_ventes
+
+Path("logs").mkdir(exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
