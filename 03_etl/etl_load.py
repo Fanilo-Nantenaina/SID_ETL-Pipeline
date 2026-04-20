@@ -8,9 +8,6 @@ log = logging.getLogger(__name__)
 TODAY = date.today().isoformat()
 
 
-# ──────────────────────────────────────────────────────
-# dim_temps : génération du calendrier si vide
-# ──────────────────────────────────────────────────────
 def load_dim_temps():
     existing = pd.read_sql("SELECT COUNT(*) AS n FROM dim_temps", ENGINE_DM).iloc[0][
         "n"
@@ -42,9 +39,6 @@ def load_dim_temps():
     log.info(f"dim_temps : {len(rows)} jours insérés")
 
 
-# ──────────────────────────────────────────────────────
-# dim_client : SCD Type 2
-# ──────────────────────────────────────────────────────
 def load_dim_client():
     df_stg = pd.read_sql(
         "SELECT * FROM stg_clients WHERE stg_status='CLEAN'", ENGINE_STG
@@ -57,7 +51,6 @@ def load_dim_client():
         match = df_dm[df_dm["code"] == row["code_client"]]
 
         if match.empty:
-            # Nouveau client
             new_rows.append(_build_dim_row(row, TODAY))
 
         else:
@@ -66,20 +59,15 @@ def load_dim_client():
                 row["segment"] != dm_row["segment"] or row["ville"] != dm_row["ville"]
             )
             if changed:
-                # SCD2 : fermer l'ancienne version
                 update_ids.append(int(dm_row["id_client"]))
-                # Insérer la nouvelle version
                 new_rows.append(_build_dim_row(row, TODAY))
-            # else : SCD1 — aucun changement stratégique, on ignore
 
-    # Fermer les versions obsolètes
     if update_ids:
         ids_str = ",".join(map(str, update_ids))
         ENGINE_DM.execute(
             f"UPDATE dim_client SET date_fin='{TODAY}', est_actuel=FALSE WHERE id_client IN ({ids_str})"
         )
 
-    # Insérer les nouvelles lignes
     if new_rows:
         pd.DataFrame(new_rows).to_sql(
             "dim_client", ENGINE_DM, if_exists="append", index=False
@@ -101,9 +89,6 @@ def _build_dim_row(row, date_debut):
     }
 
 
-# ──────────────────────────────────────────────────────
-# dim_produit, dim_commercial, dim_mode (full replace)
-# ──────────────────────────────────────────────────────
 def load_dim_simple(stg_table, dm_table, col_map):
     df = pd.read_sql(f"SELECT * FROM {stg_table}", ENGINE_STG)
     df = df.rename(columns=col_map)
@@ -113,15 +98,11 @@ def load_dim_simple(stg_table, dm_table, col_map):
     log.info(f"{dm_table} : {len(df)} lignes chargées")
 
 
-# ──────────────────────────────────────────────────────
-# fait_ventes : chargement de la table de faits
-# ──────────────────────────────────────────────────────
 def load_fait_ventes():
     df = pd.read_sql(
         "SELECT * FROM stg_lignes_facture WHERE stg_status='CLEAN'", ENGINE_STG
     )
 
-    # Résolution des clés de substitution
     dim_t = pd.read_sql("SELECT id_date, jour, mois, annee FROM dim_temps", ENGINE_DM)
     dim_cli = pd.read_sql(
         "SELECT id_client, code FROM dim_client WHERE est_actuel=TRUE", ENGINE_DM
@@ -129,14 +110,12 @@ def load_fait_ventes():
     dim_pro = pd.read_sql("SELECT id_produit, code FROM dim_produit", ENGINE_DM)
     dim_com = pd.read_sql("SELECT id_commercial, nom FROM dim_commercial", ENGINE_DM)
 
-    # Convertir date_facture en id_date format YYYYMMDD
     df["date_facture"] = pd.to_datetime(df["date_facture"])
     df["id_date_key"] = df["date_facture"].dt.strftime("%Y%m%d").astype(int)
     df = df.merge(
         dim_t[["id_date"]], left_on="id_date_key", right_on="id_date", how="left"
     )
 
-    # Clé client : via code_client depuis stg_clients
     df_cli_map = pd.read_sql(
         "SELECT id_client AS id_stg, code_client FROM stg_clients", ENGINE_STG
     )
@@ -155,7 +134,7 @@ def load_fait_ventes():
         {
             "id_date": df["id_date"],
             "id_client": df["fk_client"],
-            "id_produit": df["id_produit"],  # même id que dim_produit si full replace
+            "id_produit": df["id_produit"],
             "id_commercial": df["id_commercial"],
             "quantite": df["quantite"],
             "montant_ht": df["montant_ht"],
