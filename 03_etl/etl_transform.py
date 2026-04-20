@@ -34,5 +34,11 @@ def transform_lignes():
     ).round(2)
     df["stg_status"] = "CLEAN"
     df.drop(columns=["prix_achat"], inplace=True)
-    df.to_sql("stg_lignes_facture", ENGINE_STG, if_exists="replace", index=False)
+    df.to_sql(
+        "stg_lignes_facture",
+        ENGINE_STG,
+        if_exists="replace",
+        index=False,
+        chunksize=500,
+    )
     return df

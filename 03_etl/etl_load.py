@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import date
+from sqlalchemy import inspect as sql_inspect, text
 from etl_config import ENGINE_STG, ENGINE_DM
 import logging
 
@@ -9,12 +10,14 @@ TODAY = date.today().isoformat()
 
 
 def load_dim_temps():
-    existing = pd.read_sql("SELECT COUNT(*) AS n FROM dim_temps", ENGINE_DM).iloc[0][
-        "n"
-    ]
-    if existing > 0:
-        log.info("dim_temps déjà peuplé — skip")
-        return
+    insp = sql_inspect(ENGINE_DM)
+    if insp.has_table("dim_temps"):
+        existing = pd.read_sql("SELECT COUNT(*) AS n FROM dim_temps", ENGINE_DM).iloc[
+            0
+        ]["n"]
+        if existing > 0:
+            log.info("dim_temps déjà peuplé — skip")
+            return
 
     rows = []
     d = date(2022, 1, 1)
@@ -43,16 +46,24 @@ def load_dim_client():
     df_stg = pd.read_sql(
         "SELECT * FROM stg_clients WHERE stg_status='CLEAN'", ENGINE_STG
     )
-    df_dm = pd.read_sql("SELECT * FROM dim_client WHERE est_actuel=TRUE", ENGINE_DM)
+
+    insp = sql_inspect(ENGINE_DM)
+    if insp.has_table("dim_client"):
+        df_dm = pd.read_sql("SELECT * FROM dim_client WHERE est_actuel=TRUE", ENGINE_DM)
+    else:
+        df_dm = pd.DataFrame()
 
     new_rows, update_ids = [], []
 
     for _, row in df_stg.iterrows():
-        match = df_dm[df_dm["code"] == row["code_client"]]
+        match = (
+            df_dm[df_dm["code"] == row["code_client"]]
+            if not df_dm.empty
+            else pd.DataFrame()
+        )
 
         if match.empty:
             new_rows.append(_build_dim_row(row, TODAY))
-
         else:
             dm_row = match.iloc[0]
             changed = (
@@ -64,9 +75,12 @@ def load_dim_client():
 
     if update_ids:
         ids_str = ",".join(map(str, update_ids))
-        ENGINE_DM.execute(
-            f"UPDATE dim_client SET date_fin='{TODAY}', est_actuel=FALSE WHERE id_client IN ({ids_str})"
-        )
+        with ENGINE_DM.begin() as conn:
+            conn.execute(
+                text(
+                    f"UPDATE dim_client SET date_fin='{TODAY}', est_actuel=FALSE WHERE id_client IN ({ids_str})"
+                )
+            )
 
     if new_rows:
         pd.DataFrame(new_rows).to_sql(
@@ -103,12 +117,11 @@ def load_fait_ventes():
         "SELECT * FROM stg_lignes_facture WHERE stg_status='CLEAN'", ENGINE_STG
     )
 
-    dim_t = pd.read_sql("SELECT id_date, jour, mois, annee FROM dim_temps", ENGINE_DM)
+    dim_t = pd.read_sql("SELECT id_date FROM dim_temps", ENGINE_DM)
     dim_cli = pd.read_sql(
         "SELECT id_client, code FROM dim_client WHERE est_actuel=TRUE", ENGINE_DM
     )
     dim_pro = pd.read_sql("SELECT id_produit, code FROM dim_produit", ENGINE_DM)
-    dim_com = pd.read_sql("SELECT id_commercial, nom FROM dim_commercial", ENGINE_DM)
 
     df["date_facture"] = pd.to_datetime(df["date_facture"])
     df["id_date_key"] = df["date_facture"].dt.strftime("%Y%m%d").astype(int)
@@ -145,6 +158,6 @@ def load_fait_ventes():
     )
 
     fait.to_sql(
-        "fait_ventes", ENGINE_DM, if_exists="replace", index=False, chunksize=1000
+        "fait_ventes", ENGINE_DM, if_exists="replace", index=False, chunksize=500
     )
     log.info(f"fait_ventes : {len(fait)} lignes chargées")
