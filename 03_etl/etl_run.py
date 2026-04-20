@@ -2,7 +2,14 @@ import logging, sys, time
 from pathlib import Path
 from etl_extract import extract_all
 from etl_transform import transform_clients, transform_lignes
-from etl_load import load_dim_temps, load_dim_client, load_dim_simple, load_fait_ventes
+from etl_load import (
+    load_dim_temps,
+    load_dim_client,
+    load_dim_produit,
+    load_dim_simple,
+    load_fait_ventes,
+    load_fait_reglements,
+)
 
 Path("logs").mkdir(exist_ok=True)
 
@@ -31,9 +38,7 @@ def run():
     log.info("--- PHASE L : Chargement ---")
     load_dim_temps()
     load_dim_client()
-    load_dim_simple(
-        "stg_produits", "dim_produit", {"code_produit": "code", "libelle": "libelle"}
-    )
+    load_dim_produit()  # ← fonction dédiée
     load_dim_simple(
         "stg_commerciaux",
         "dim_commercial",
@@ -41,6 +46,7 @@ def run():
     )
     load_dim_simple("stg_modes_reglement", "dim_mode_reglement", {"libelle": "libelle"})
     load_fait_ventes()
+    load_fait_reglements()  # ← ajout manquant
 
     log.info(f"=== ETL TERMINÉ en {time.time()-t0:.1f}s ===")
 
